@@ -1,8 +1,23 @@
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import { join } from "path";
 import { promises as fs } from "fs";
+import {
+  Folia__factory,
+  FoliaController__factory,
+  Metadata__factory,
+  Folia,
+  FoliaController,
+  Metadata,
+} from "./contracts";
+import { CLIError } from "./exceptions";
 
 export interface IEnv {
+  send: boolean;
+  gasPrice: BigNumber;
+  gasLimit: number;
+  confirmations: number;
+  url: (addressOrTx: string) => string;
+  //gasLimitMargin: number;
   network: string;
   endpoint: string;
   privateKey: string;
@@ -11,9 +26,9 @@ export interface IEnv {
   metadataAddress: string;
   wallet: ethers.Wallet;
   provider: ethers.providers.Provider;
-  foliaContract: ethers.Contract;
-  foliaControllerContract: ethers.Contract;
-  metadataContract: ethers.Contract;
+  foliaContract: Folia;
+  foliaControllerContract: FoliaController;
+  metadataContract: Metadata;
 }
 
 export interface IArtifact {
@@ -27,12 +42,21 @@ export interface IArtifact {
   };
 }
 
-export async function load(network: string, artifacts: string): Promise<IEnv> {
+const PUBLIC_NETWORKS = ["mainnet", "kovan", "rinkeby", "ropsten", "goerli"];
+
+export async function load(
+  network: string,
+  artifacts: string,
+  send: boolean,
+  gasPrice: BigNumber,
+  gasLimit: number,
+  confirmations: number
+): Promise<IEnv> {
   function get(key: string) {
     const fullkey = `${network.toUpperCase()}_${key}`;
     const value = process.env[fullkey];
     if (value === undefined) {
-      throw new Error(`Please define "${fullkey}" in your .env file.`);
+      throw new CLIError(`Please define "${fullkey}" in your .env file.`);
     }
     return value;
   }
@@ -49,21 +73,27 @@ export async function load(network: string, artifacts: string): Promise<IEnv> {
   function getAddress(artifact: IArtifact, chainId: number) {
     const obj = artifact.networks[chainId.toString()];
     if (!obj) {
-      throw new Error(
+      throw new CLIError(
         `Cannot find address for ${artifact.contractName}, did you deploy it to ${network}?`
       );
     }
     return obj.address;
   }
 
+  function url(addressOrTx: string) {
+    if (PUBLIC_NETWORKS.includes(network)) {
+      const type = addressOrTx.length === 42 ? "address" : "tx";
+      return `https://${network}.etherscan.io/${type}/${addressOrTx}`;
+    }
+    return "";
+  }
+
   const privateKey = get("PRIVATE_KEY");
   const endpoint = get("ENDPOINT");
 
-  const wallet = new ethers.Wallet(privateKey);
   const provider = new ethers.providers.JsonRpcProvider(endpoint);
+  const wallet = new ethers.Wallet(privateKey, provider);
   const { chainId } = await provider.getNetwork();
-
-  console.log("chainid is ", chainId);
 
   const foliaArtifact = await getArtifact("Folia");
   const foliaControllerArtifact = await getArtifact("FoliaController");
@@ -73,39 +103,27 @@ export async function load(network: string, artifacts: string): Promise<IEnv> {
   const foliaControllerAddress = getAddress(foliaControllerArtifact, chainId);
   const metadataAddress = getAddress(metadataArtifact, chainId);
 
-  const e = {
-    foliaAddress: foliaArtifact.networks[chainId],
-    foliaControllerAddress: foliaControllerArtifact.networks[chainId],
-    metadataAddress: metadataArtifact.networks[chainId],
-  };
-
-  wallet.connect(provider);
-
-  const foliaContract = new ethers.Contract(
-    foliaAddress,
-    foliaArtifact.abi,
-    wallet
-  );
-  const foliaControllerContract = new ethers.Contract(
+  const foliaContract = Folia__factory.connect(foliaAddress, wallet);
+  const foliaControllerContract = FoliaController__factory.connect(
     foliaControllerAddress,
-    foliaControllerArtifact.abi,
     wallet
   );
-  const metadataContract = new ethers.Contract(
-    metadataAddress,
-    metadataArtifact.abi,
-    wallet
-  );
+  const metadataContract = Metadata__factory.connect(metadataAddress, wallet);
 
   return {
+    send,
     network,
     endpoint,
     privateKey,
+    gasLimit,
+    gasPrice,
+    confirmations,
     foliaAddress,
     foliaControllerAddress,
     metadataAddress,
     wallet,
     provider,
+    url,
     foliaContract,
     foliaControllerContract,
     metadataContract,
