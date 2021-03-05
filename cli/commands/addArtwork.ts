@@ -34,9 +34,11 @@ export default async function addArtwork(
       )
   );
 
-  // FIXME: not sure that's the most idiomatic way to do it. Plus it doesn't
-  // leverage TypeScript.
-  const [event] = receipt.events.filter((e) => e.event === "newWork");
-  const workId = event.args[0].toString();
-  console.log("Artwork minted with id", c.blue(workId));
+  if (receipt) {
+    // FIXME: not sure that's the most idiomatic way to do it. Plus it doesn't
+    // leverage TypeScript.
+    const [event] = receipt.events.filter((e) => e.event === "newWork");
+    const workId = event.args[0].toString();
+    console.log("Artwork minted with id", c.blue(workId));
+  }
 }
