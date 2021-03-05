@@ -11,7 +11,7 @@ import {
 } from "./contracts";
 import { CLIError } from "./exceptions";
 
-export interface IEnv {
+export interface IContext {
   send: boolean;
   gasPrice: BigNumber;
   gasLimit: number;
@@ -51,7 +51,7 @@ export async function load(
   gasPrice: BigNumber,
   gasLimit: number,
   confirmations: number
-): Promise<IEnv> {
+): Promise<IContext> {
   function get(key: string) {
     const fullkey = `${network.toUpperCase()}_${key}`;
     const value = process.env[fullkey];

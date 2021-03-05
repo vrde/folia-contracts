@@ -1,72 +1,14 @@
-/**
- * CLI for Folia contracts
- *
- * Env variables:
- *
- * - PRIVATE_KEY: the private key to use to sign transactions
- */
-
 require("dotenv").config();
-
 import { program } from "commander";
-import { BigNumber } from "ethers";
-import { load, IEnv } from "./load";
-import { send } from "./send";
 import { c } from "./colors";
 import { banner } from "./banner";
 import { CLIError } from "./exceptions";
+import { BigNumber } from "ethers";
+import { load } from "./context";
+import config from "./commands/config";
+import addArtwork from "./commands/addArtwork";
 
-async function addArtwork(
-  env: IEnv,
-  address: string,
-  editions: number,
-  price: number,
-  pause: boolean
-) {
-  const { foliaControllerContract } = env;
-  console.log(`addArtwork(${address}, ${editions}, ${price}, ${pause})`);
-  await send(
-    env,
-    (overrides) =>
-      foliaControllerContract.addArtwork(
-        address,
-        editions,
-        price,
-        pause,
-        overrides
-      ),
-    () =>
-      foliaControllerContract.estimateGas.addArtwork(
-        address,
-        editions,
-        price,
-        pause
-      )
-  );
-}
-
-async function showConfig(env: IEnv) {
-  console.log("Configuration for network", c.blue(env.network));
-  console.log("Endpoint:", c.blue(env.endpoint));
-  console.log("Private key:", c.blue("*".repeat(env.privateKey.length)));
-  console.log(
-    "Folia address:",
-    c.blue(env.foliaAddress),
-    env.url(env.foliaAddress)
-  );
-  console.log(
-    "FoliaController address:",
-    c.blue(env.foliaControllerAddress),
-    env.url(env.foliaControllerAddress)
-  );
-  console.log(
-    "Metadata address:",
-    c.blue(env.metadataAddress),
-    env.url(env.metadataAddress)
-  );
-}
-
-function loadFromOptions(opt: object) {
+export function loadFromOptions(opt: object) {
   // Gas price is specified in gwei, that is 1,000,000,000 wei
   const gasPrice = BigNumber.from(program.opts().gasPrice).mul(1e9);
   return load(
@@ -79,11 +21,11 @@ function loadFromOptions(opt: object) {
   );
 }
 
-function parseBool(v: string) {
+export function parseBool(v: string) {
   return ["1", "true", "t"].includes(v.toLowerCase());
 }
 
-async function main() {
+export async function main() {
   program.version("0.0.1");
 
   program.option("--SEND", "Send transactions to the blockchain", false);
@@ -119,7 +61,6 @@ async function main() {
     "10"
   );
   */
-
   program.option(
     "-a, --artifacts <dir>",
     "Specify where the contract artifacts are stored",
@@ -131,7 +72,7 @@ async function main() {
     .description("Show the configuration")
     .action(async () => {
       const env = await loadFromOptions(program.opts());
-      showConfig(env);
+      config(env);
     });
 
   program

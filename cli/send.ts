@@ -1,40 +1,50 @@
 import { BigNumber, ContractTransaction, Overrides, utils } from "ethers";
 import { CLIError } from "./exceptions";
-import { IEnv } from "./load";
+import { IContext } from "./context";
+import { c } from "./colors";
 
 export async function send(
-  env: IEnv,
+  ctx: IContext,
   sendFunc: (o: Overrides) => Promise<ContractTransaction>,
   estimateFunc: () => Promise<BigNumber>
 ) {
   const overrides: Overrides = {
-    gasPrice: env.gasPrice,
+    gasPrice: ctx.gasPrice,
   };
 
   const estimate = await estimateFunc();
-  const estimateInEth = utils.formatEther(estimate.mul(env.gasPrice));
-  console.log(`Gas estimation: ${estimate.toString()} (${estimateInEth} Ξ)`);
+  const estimateInEth = utils.formatEther(estimate.mul(ctx.gasPrice));
+  console.log(
+    "Gas estimation:",
+    c.blue(estimate.toString()),
+    `(${estimateInEth} Ξ)`
+  );
 
-  if (env.gasLimit > 0) {
-    if (env.gasLimit < estimate.toNumber()) {
+  if (ctx.gasLimit > 0) {
+    if (ctx.gasLimit < estimate.toNumber()) {
       throw new CLIError(
         `Gas limit is set to ${
-          env.gasLimit
+          ctx.gasLimit
         }, but estimate is ${estimate.toString()}`
       );
     } else {
-      overrides.gasLimit = env.gasLimit;
+      overrides.gasLimit = ctx.gasLimit;
     }
   } else {
     overrides.gasLimit = estimate;
   }
 
-  if (env.send) {
-    console.log("Send transaction");
+  if (ctx.send) {
     const tx = await sendFunc(overrides);
-    console.log("Transaction hash", tx.hash);
-    console.log("Waiting for transaction to be included in a block");
-    const receipt = await tx.wait(env.confirmations);
+    console.log("Transaction hash", c.blue(tx.hash), ctx.url(tx.hash));
+    console.log(
+      `Waiting ${c.blue(ctx.confirmations.toString())} confirmation(s)`
+    );
+    const receipt = await tx.wait(ctx.confirmations);
+    console.log(
+      "Transaction included in block",
+      c.blue(receipt.blockNumber.toString())
+    );
     return receipt;
   }
 }
