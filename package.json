@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Folia.app Smart Contracts",
   "scripts": {
+    "cli": "npx --silent ts-node cli",
     "compile": "npx truffle compile",
     "migrate": "npx truffle migrate",
     "test": "npx truffle test test/*.test.js",
