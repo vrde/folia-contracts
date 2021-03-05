@@ -64,7 +64,7 @@ export async function main() {
   program.option(
     "-a, --artifacts <dir>",
     "Specify where the contract artifacts are stored",
-    "out"
+    "artifacts"
   );
 
   program
